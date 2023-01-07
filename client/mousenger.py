@@ -22,23 +22,23 @@ class Controller(QApplication):
         self.setWindowIcon(QIcon('./ui/happy_mouse.webp'))
         self.__login_dialogue = LoginDialogue()
         self.__connect_login_dialogue_signals()
-        self.__sending_sock = socket(AF_INET, SOCK_STREAM)
+        self.__sending_sock = None
         self.__thread_pool = []
         # self.__msg_store_lock = threading.Lock()
 
     def __login(self):
+        username, password = self.__login_dialogue.get_user_input()
+        if '' in (username, password):
+            self.__login_dialogue.set_prompt_text('Credentials cannot be empty!')
+            return  # Abort the login attempt if any credential is empty.
+
         try:
+            self.__sending_sock = socket(AF_INET, SOCK_STREAM)
             self.__sending_sock.connect(REQUEST_HANDLER_SPAWNER_ADDR)
             self.__sending_sock.send(b'#LOGIN#')
             time.sleep(0.2)  # To avoid TCP sticky packets
-
-            username, password = self.__login_dialogue.get_user_input()
-            if '' in (username, password):
-                self.__login_dialogue.set_prompt_text('Neither username or password can be empty!')
-                result = b'#EMPTY#'
-            else:
-                self.__sending_sock.send(username.encode())  # Check username
-                result = self.__sending_sock.recv(4)
+            self.__sending_sock.send(username.encode())
+            result = self.__sending_sock.recv(4)  # Receive username check result.
 
         except ConnectionError as err:
             if IS_DEBUGGING:
@@ -46,32 +46,37 @@ class Controller(QApplication):
             result = b'#ERROR#'
 
         if result == b'#OK#':  # Username is valid.
-            result = None  # Reset result to avoid confusions in the following if statements.
-            self.__sending_sock.send(password.encode())  # Check password
-            result = self.__sending_sock.recv(4)
+            del result  # Reset result to avoid confusions in the following if statements.
+            self.__sending_sock.send(password.encode())
+            result = self.__sending_sock.recv(4)  # Receive password check result.
 
             if result == b'#OK#':  # Password is correct. Logged in.
                 self.__login_dialogue.hide()
                 self.__main(username)
-                return  # Avoid running the code for socket recreation.
-
-            elif result == b'#NO#':  # Password is wrong
+                return
+                # Abort the method to avoid resetting __sending_sock
+            elif result == b'#NO#':
                 self.__login_dialogue.set_prompt_text('Password is incorrect!')
 
-        elif result == b'#NO#':  # Username is invalid.
+        elif result == b'#NO#':
             self.__login_dialogue.set_prompt_text('Username is invalid!')
 
-        if result not in (b'#OK#', b'#NO#', b'#EMPTY#'):  # All other cases
+        if result not in (b'#OK#', b'#NO#'):  # All other cases where error is involved
             self.__login_dialogue.set_prompt_text('Sorry, something went wrong. Please try again.')
 
-        # Recreate the sending socket to avoid repeated connection to the server.
+        # Reset __sending_sock to indicate offline status.
         self.__sending_sock.close()
-        self.__sending_sock = socket(AF_INET, SOCK_STREAM)
+        self.__sending_sock = None
 
     def __send_msg(self):
+        # Stop user from sending empty messages.
+        user_input = self.__main_window.get_msg_edit_input()
+        if not user_input:
+            self.__main_window.set_status_text('Cannot send empty messages!')
+            return
+
         try:
             self.__sending_sock.send(b'#MSG#')
-            user_input = self.__main_window.get_msg_edit_input()
             message = '#'
             message += self.__model.get_cur_chat_title()
             message += '#'
@@ -103,7 +108,7 @@ class Controller(QApplication):
             # a change in login status won't stop the loop.
             # MORE work needed!!!
             if IS_DEBUGGING:
-                print('Logged in:',self.__model.is_logged_in())
+                print('Logged in:', self.__model.is_logged_in())
 
             data = self.__scraper_sock.recv(256).decode()
             if not data:
@@ -167,9 +172,10 @@ class Controller(QApplication):
         # self.__main_window.msg_edit.textChanged.connect(self.__main_window.adjust_msg_edit_height)
         self.__main_window.msg_edit.returnPressed.connect(self.__send_msg)
         self.__main_window.exit_action.triggered.connect(self.exit)
-        self.__main_window.chat_list.itemActivated.connect(self.__chat_list_item_activated)  # Enable keyboard selection
+        self.__main_window.chat_list.itemActivated.connect(self.__chat_list_item_activated)
+        # The above line enables keyboard selection.
         self.__main_window.chat_list.itemClicked.connect(self.__chat_list_item_activated)
-        # The above line enables mouse click selection
+        # The above line enables mouse click selection.
         self.__main_window.search_bar.editingFinished.connect(self.__find_user)
 
         self.__model.msgStoreUpdated.connect(self.__main_window.update_chat_display)
@@ -201,13 +207,17 @@ class Controller(QApplication):
         self.__login_dialogue.show()
         exit_code = super().exec()
 
-        # If __model is present, then the user is logged in.
-        if '_Controller__model' in self.__dir__():
+        # If __sending_sock is not None, then the user is logged in.
+        if self.__sending_sock is not None:
             self.__sending_sock.send(b'#LOGOUT#')
+            self.__sending_sock.close()
             if IS_DEBUGGING:
                 print('Logout signal sent.')
+                print('Sending socket closed.')
+
             self.__model.toggle_logged_in()  # Toggle login status to terminate child threads.
             [thread.join(2.0) for thread in self.__thread_pool]
+
             self.__scraper_sock.close()
             if IS_DEBUGGING:
                 print('Scraper socket closed.')
@@ -215,7 +225,6 @@ class Controller(QApplication):
             if IS_DEBUGGING:
                 print('All messages dumped.')
 
-        self.__sending_sock.close()
         return exit_code
 
 
