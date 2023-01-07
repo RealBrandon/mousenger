@@ -9,8 +9,8 @@ from ui.main_window import MainWindow
 from ui.login_dialogue import LoginDialogue
 
 IS_DEBUGGING = True
-# SERVER_IP = '127.0.0.1'
-SERVER_IP = '103.152.220.241'
+SERVER_IP = '127.0.0.1'
+# SERVER_IP = '103.152.220.241'
 REQUEST_HANDLER_SPAWNER_ADDR = (SERVER_IP, 12345)
 MSG_SCRAPER_HANDLER_ADDR = (SERVER_IP, 18964)
 
@@ -156,7 +156,7 @@ class Controller(QApplication):
         self.__main_window.set_chat_list()  # Restore the chat list to normal after searching.
         self.__main_window.set_chat_top()
         self.__main_window.set_type_area_visibility(True)
-        self.__main_window.adjust_msg_edit_height()
+        # self.__main_window.adjust_msg_edit_height()
 
     def __connect_login_dialogue_signals(self):
         self.__login_dialogue.login_button.clicked.connect(self.__login)
@@ -164,11 +164,12 @@ class Controller(QApplication):
 
     def __connect_other_signals(self):
         self.__main_window.send_button.clicked.connect(self.__send_msg)
-        self.__main_window.msg_edit.textChanged.connect(self.__main_window.adjust_msg_edit_height)
+        # self.__main_window.msg_edit.textChanged.connect(self.__main_window.adjust_msg_edit_height)
+        self.__main_window.msg_edit.returnPressed.connect(self.__send_msg)
         self.__main_window.exit_action.triggered.connect(self.exit)
         self.__main_window.chat_list.itemActivated.connect(self.__chat_list_item_activated)  # Enable keyboard selection
-        self.__main_window.chat_list.itemClicked.connect(
-            self.__chat_list_item_activated)  # Enable mouse click selection
+        self.__main_window.chat_list.itemClicked.connect(self.__chat_list_item_activated)
+        # The above line enables mouse click selection
         self.__main_window.search_bar.editingFinished.connect(self.__find_user)
 
         self.__model.msgStoreUpdated.connect(self.__main_window.update_chat_display)

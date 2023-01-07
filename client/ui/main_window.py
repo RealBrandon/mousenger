@@ -82,7 +82,7 @@ class MainWindow(QtWidgets.QMainWindow):
         chat_main_layout.addWidget(self.__chat_display)
 
         type_area_layout = QtWidgets.QHBoxLayout()
-        self.msg_edit = QtWidgets.QTextEdit(self)
+        self.msg_edit = QtWidgets.QLineEdit(self)
         self.msg_edit.setStyleSheet(
             f'background-color:{MAIN_COLOUR_LIGHT};'
             'color:white;'
@@ -190,22 +190,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.send_button.setVisible(set_visible)
 
     def get_msg_edit_input(self) -> str:
-        message = self.msg_edit.document().toPlainText()
+        message = self.msg_edit.text()
         return message
 
     def clear_msg_edit(self):
         self.msg_edit.clear()
         self.msg_edit.setFocus()
 
-    def adjust_msg_edit_height(self):
-        '''Adjust the height of msg_edit to fit its content.'''
-        max_height = 262
-        doc_height = self.msg_edit.document().size().height()
-        padding: int = 2
-        new_height = int(doc_height) + padding
-        if new_height > max_height:
-            new_height = max_height
-        self.msg_edit.setFixedHeight(new_height)
+    # def adjust_msg_edit_height(self):
+    #     '''Adjust the height of msg_edit to fit its content.'''
+    #     max_height = 262
+    #     doc_height = self.msg_edit.document().size().height()
+    #     padding: int = 2
+    #     new_height = int(doc_height) + padding
+    #     if new_height > max_height:
+    #         new_height = max_height
+    #     self.msg_edit.setFixedHeight(new_height)
 
     def set_status_text(self, text: str):
         self.__status_label.setText(text)

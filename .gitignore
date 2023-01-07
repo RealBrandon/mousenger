@@ -1,4 +1,5 @@
 test_client.py
-todo.txt
+todo.md
 client_copy/
 client/data/
+*/__pycache__/
