@@ -2,4 +2,6 @@ test_client.py
 TODOS.md
 client_copy/
 client/data/
-*/__pycache__/
+client/__pycache__/
+client/ui/__pycache__/
+server/__pycache__/
