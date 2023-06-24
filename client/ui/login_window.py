@@ -6,7 +6,7 @@ else:
     from ui.colour import *
 
 
-class LoginDialogue(QtWidgets.QDialog):
+class LoginWindow(QtWidgets.QDialog):
 
     def __init__(self):
         super().__init__()
@@ -30,7 +30,12 @@ class LoginDialogue(QtWidgets.QDialog):
         banner_layout = QtWidgets.QHBoxLayout()
         banner_layout.addSpacerItem(hor_spacer)
         banner_icon_label = QtWidgets.QLabel(self)
-        banner_icon_label.setPixmap(QtGui.QPixmap('./ui/happy_mouse.webp'))
+        if __name__ == "__main__":
+            # Set banner icon picture when this is the main program.
+            banner_icon_label.setPixmap(QtGui.QPixmap("happy_mouse.webp"))
+        else:
+            # Set banner icon picture when this is a module.
+            banner_icon_label.setPixmap(QtGui.QPixmap('./ui/happy_mouse.webp'))
         banner_icon_label.setScaledContents(True)
         banner_icon_label.setFixedHeight(int(self.height() * 0.3))
         banner_icon_label.setFixedWidth(banner_icon_label.height())
@@ -122,6 +127,6 @@ if __name__ == '__main__':
     import sys
 
     app = QtWidgets.QApplication(sys.argv)
-    login_dialogue = LoginDialogue()
+    login_dialogue = LoginWindow()
     login_dialogue.open()
     sys.exit(app.exec())

@@ -5,8 +5,9 @@
       <sourceFolder url="file://$MODULE_DIR$/client" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/client_copy" />
       <excludeFolder url="file://$MODULE_DIR$/client/data" />
+      <excludeFolder url="file://$MODULE_DIR$/venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (Mousenger)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

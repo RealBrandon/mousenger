@@ -5,7 +5,7 @@ MAX_MSG_QUEUE_LEN = 20
 
 
 class Model(QObject):
-    '''Generated after login'''
+    """Generated after login"""
     msgStoreUpdated = pyqtSignal()
     chatTitleChanged = pyqtSignal()
     chatListChanged = pyqtSignal()
@@ -23,11 +23,11 @@ class Model(QObject):
         # Therefore, rsplit() is used instead.
         self.__msg_store = {chat_title: None for chat_title in self.__chat_list}
         self.__load_into_msg_store()
-        self.__cur_chat_title = None
+        self.__opened_chat_name = None
         self.__logged_in = True
 
     def is_logged_in(self) -> bool:
-        '''Check if any user is logged in'''
+        """Check if the current user is logged in."""
         return self.__logged_in
 
     def toggle_logged_in(self):
@@ -42,7 +42,7 @@ class Model(QObject):
         else:
             return False
 
-    def __move_to_chat_list_top(self, chat_title: str):
+    def __move_to_top_of_chat_list(self, chat_title: str):
         self.__chat_list.remove(chat_title)
         self.__chat_list.insert(0, chat_title)
 
@@ -55,20 +55,20 @@ class Model(QObject):
 
         self.chatListChanged.emit()
 
-    def get_cur_chat_title(self) -> str:
-        return self.__cur_chat_title
+    def get_opened_chat_name(self) -> str:
+        return self.__opened_chat_name
 
-    def set_cur_chat_title(self, new_title: str):
-        if not self.__check_is_in_chat_list(new_title):
-            self.__add_to_chat_list(new_title)
-        self.__cur_chat_title = new_title
+    def set_opened_chat_name(self, new_chat_name: str):
+        if not self.__check_is_in_chat_list(new_chat_name):
+            self.__add_to_chat_list(new_chat_name)
+        self.__opened_chat_name = new_chat_name
 
         self.chatTitleChanged.emit()
 
     def save_to_msg_store(self, raw_msg: str, is_self: bool = True, chat_title: str = None):
-        '''Default to sending by user themselves in the current chat'''
+        """Default to sending by user themselves in the current chat"""
         if chat_title is None:
-            chat_title = self.get_cur_chat_title()
+            chat_title = self.get_opened_chat_name()
 
         if is_self:  # Check if the message is sent by the user themselves.
             sender = 'You'
@@ -79,14 +79,14 @@ class Model(QObject):
             self.__add_chat_to_msg_store(chat_title)
 
         self.__msg_store[chat_title].append((sender, raw_msg))
-        if chat_title == self.__cur_chat_title:  # Check if notifying controller and view is needed
+        if chat_title == self.__opened_chat_name:  # Check if notifying controller and view is needed
             self.msgStoreUpdated.emit()
 
     def __add_chat_to_msg_store(self, chat_title: str):
         self.__msg_store[chat_title] = []
         if not self.__check_is_in_chat_list(chat_title):  # Add to chat_list if needed.
             self.__add_to_chat_list(chat_title)
-        self.__move_to_chat_list_top(chat_title)
+        self.__move_to_top_of_chat_list(chat_title)
 
     def __check_is_in_msg_store(self, chat_title: str) -> bool:
         if chat_title in self.__msg_store:
@@ -95,9 +95,9 @@ class Model(QObject):
             return False
 
     def get_msg(self, chat_title: str = None) -> list:
-        '''Default to current chat'''
+        """Default to current chat"""
         if chat_title is None:
-            chat_title = self.get_cur_chat_title()
+            chat_title = self.get_opened_chat_name()
 
         chat_history = []
         for msg_tuple in self.__msg_store[chat_title]:
@@ -137,7 +137,7 @@ class Model(QObject):
                         sender, message = msg_queue.pop(0)  # Dump the oldest message.
                         file.write(f'{sender}#SEP#{message}\n')
                     file.close()
-                    if chat_title == self.get_cur_chat_title():
+                    if chat_title == self.get_opened_chat_name():
                         self.msgStoreUpdated.emit()
         else:
             for chat_title in self.__msg_store:

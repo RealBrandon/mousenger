@@ -1,5 +1,4 @@
 from PyQt6 import QtGui, QtCore, QtWidgets
-from model import Model
 
 if __name__ == '__main__':
     from colour import *
@@ -9,9 +8,8 @@ else:
 
 class MainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self, model: Model):
+    def __init__(self):
         super().__init__()
-        self.__model = model
         self.__init_ui()
 
     def __init_ui(self):
@@ -56,13 +54,13 @@ class MainWindow(QtWidgets.QMainWindow):
         chat_main_layout = QtWidgets.QVBoxLayout()
 
         chat_title_layout = QtWidgets.QHBoxLayout()
-        self.__chat_title_label = QtWidgets.QLabel(self)
-        self.__chat_title_label.setStyleSheet('color:white;')
+        self.__chat_name_label = QtWidgets.QLabel(self)
+        self.__chat_name_label.setStyleSheet('color:white;')
         font = QtGui.QFont()
         font.setPointSize(14)
         font.setBold(True)
-        self.__chat_title_label.setFont(font)
-        chat_title_layout.addWidget(self.__chat_title_label)
+        self.__chat_name_label.setFont(font)
+        chat_title_layout.addWidget(self.__chat_name_label)
         self.__online_status_label = QtWidgets.QLabel(self)
         self.__online_status_label.setStyleSheet('color:white;')
         font.setPointSize(12)
@@ -117,33 +115,28 @@ class MainWindow(QtWidgets.QMainWindow):
         query = self.search_bar.text()
         return query
 
-    def set_chat_list(self, data: list = None):
-        '''Default to using the chat list stored in model'''
-        if data is None:
-            data = self.__model.get_chat_list()
-
-        current_title = self.__model.get_cur_chat_title()
+    def set_chat_list(self, chat_list: list, opened_chat_name: str):
         self.chat_list.clear()
-        for chat_title in data:
-            item = QtWidgets.QListWidgetItem(chat_title)
-            if chat_title == current_title:
+        for chat_name in chat_list:
+            item = QtWidgets.QListWidgetItem(chat_name)
+            if chat_name == opened_chat_name:
                 colour = QtGui.QColor(64, 128, 191)  # MAIN_COLOUR_LIGHTEST
                 item.setBackground(colour)
             self.chat_list.addItem(item)
 
-    def get_activated_chat_title(self) -> str:
-        chat_title = self.chat_list.currentItem().text()
-        return chat_title
+    def get_activated_chat_name(self) -> str:
+        chat_name = self.chat_list.currentItem().text()
+        return chat_name
 
     # def set_chat_top(self, is_online: bool):
-    #     self.__chat_title_label.setText(self.__model.get_current_chat_title())
+    #     self.__chat_name_label.setText(self.__model.get_current_chat_title())
     #     if is_online:
     #         self.__online_status_label.setText('online')
     #     else:
     #         self.__online_status_label.setText('offline')
 
-    def set_chat_top(self):
-        self.__chat_title_label.setText(self.__model.get_cur_chat_title())
+    def set_chat_top(self, opened_chat_name):
+        self.__chat_name_label.setText(opened_chat_name)
 
     def update_chat_display(self):
         ver_scroll_bar = self.__chat_display.verticalScrollBar()
@@ -183,7 +176,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ver_scroll_bar.setValue(equiv_scroll)
 
     def set_type_area_visibility(self, set_visible: bool):
-        '''Set visibility of msg_edit and send_button.'''
+        """Set visibility of msg_edit and send_button."""
         self.msg_edit.setVisible(set_visible)
         if set_visible:  # Set focus on msg_edit if it's set visible.
             self.msg_edit.setFocus()
@@ -215,7 +208,7 @@ if __name__ == '__main__':
     import sys
 
     app = QtWidgets.QApplication(sys.argv)
-    main_window = MainWindow(Model('testuser'))
+    main_window = MainWindow()
     main_window.show()
     main_window.set_type_area_visibility(True)
     sys.exit(app.exec())

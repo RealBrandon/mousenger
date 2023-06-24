@@ -9,7 +9,7 @@ class Model:
 
     @staticmethod
     def check_if_username_exists(username: str) -> bool:
-        '''Check if the username given by user exists in the database'''
+        """Check if the username given by user exists in the database"""
 
         db_conn = connector.connect(
             host='localhost',
@@ -31,7 +31,7 @@ class Model:
 
     @staticmethod
     def get_password(username: str) -> str:
-        '''Check if the password given by user matches the one in the database'''
+        """Check if the password given by user matches the one in the database"""
 
         db_conn = connector.connect(
             host='localhost',
@@ -48,14 +48,14 @@ class Model:
         return password
 
     def get_is_online(self, username: str) -> bool:
-        '''Check if a specified user is online or not.'''
+        """Check if a specified user is online or not."""
         if username in self.__online_users:
             return True
         else:
             return False
 
     def toggle_online_status(self, username: str, addr: tuple = None):
-        '''When making the user go offline, addr argument is not needed.'''
+        """When making the user go offline, addr argument is not needed."""
         if username in self.__online_users:  # The specified user is online. Log out.
             self.__online_users.pop(username)
         else:  # The specified user is offline. Log in.

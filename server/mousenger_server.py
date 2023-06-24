@@ -14,32 +14,47 @@ class Controller:
         self.__thread_pool_lock = threading.Lock()
         self.__scraper_pool_lock = threading.Lock()
 
-    def __login(self, connfd: socket, addr: tuple) -> str:
-        username = connfd.recv(16).decode()
-        if self.__model.check_if_username_exists(username):  # Username is valid.
-            connfd.send(b'#OK#')
+    def __login(self, connfd: socket, addr: tuple) -> str | None:
+        """Returns None if user disconnects; returns '' if login fails; returns username if login succeeds."""
+        connfd.send(b'#OK#')  # Approve the client to proceed.
 
+        username = connfd.recv(16).decode()
+        if not username:
+            # Empty username, meaning connection breaks
+            return None
+        elif self.__model.check_if_username_exists(username):
+            connfd.send(b'#OK#')  # Username passes.
             password_in_database = self.__model.get_password(username)
-            password = connfd.recv(32).decode()  # Check password
-            if password == password_in_database:
+            password = connfd.recv(32).decode()  # Receive user input password.
+            if not password:
+                # Empty password, meaning connection breaks
+                return None
+            elif password == password_in_database:
                 connfd.send(b'#OK#')
                 self.__model.toggle_online_status(username, addr)
                 print(f'User "{username}" from {addr} is logged in.')
                 return username
+            else:  # Invalid password
+                connfd.send(b'#NO#')
+                print(f'Login from {addr} failed.')
+                return ''
 
-        connfd.send(b'#NO#')  # Username is invalid or password is wrong.
-        print(f'Login from {addr} failed.')
-        return ''
+        else:  # Invalid username
+            connfd.send(b'#NO#')
+            print(f'Login from {addr} failed.')
+            return ''
 
     def __logout(self, username: str):
         self.__model.toggle_online_status(username)
         print(f'User "{username}" is logged out.')
 
     def __relay_msg(self, connfd: socket, sender: str):
+        connfd.send(b'#OK#')  # Approve the client to proceed.
         data = connfd.recv(256).decode()
         if not data:
-            # Empty bytes captured. Client disconnected. Relay method aborted.
+            # Client disconnects. Relay method aborted.
             return
+
         connfd.send(b'#OK#')
         data = data.strip('#')
         data = data.split('#END')[0]
@@ -61,7 +76,7 @@ class Controller:
             connfd.send(b'#NO#')
 
     def __msg_feeder(self, username: str):
-        '''One client, one feeder thread'''
+        """One client, one feeder thread"""
         while username not in self.__msg_scraper_pool:  # In case the scraper of the user hasn't reached the server
             time.sleep(0.1)
         self.__scraper_pool_lock.acquire()
@@ -92,7 +107,7 @@ class Controller:
             self.__scraper_pool_lock.release()
 
     def __request_handler(self, connfd: socket, client_addr: tuple):
-        '''One client, one handler thread, one connfd.'''
+        """One client, one handler thread, one connfd."""
         try:
             while not self.__is_quitting:
                 signal = connfd.recv(8)
@@ -104,8 +119,11 @@ class Controller:
 
                 elif signal == b'#LOGIN#':
                     username = self.__login(connfd, client_addr)
-                    if not username:  # Username is empty. Login failed. Handler stops.
-                        break
+                    if username is None:
+                        break  # User disconnects. Handler stops.
+                    elif username == '':
+                        break  # Login failed. Handler stops.
+
                     thread = threading.Thread(target=self.__msg_feeder,
                                               args=(username,), daemon=True)
                     thread.start()  # Message feeder starts.
@@ -118,11 +136,11 @@ class Controller:
                     break
 
                 elif signal == b'':
-                    print(f'Empty bytes sent by the client {client_addr}!')
                     print('The client is disconnected.')
                     print(f'Request handler for client {client_addr} aborted')
                     self.__logout(username)
                     break
+
                 else:
                     print(f'Non-handleable signals sent by the client {client_addr}!')
 
