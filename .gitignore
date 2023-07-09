@@ -1,6 +1,6 @@
 test_client.py
-client_copy/
 client/data/
 client/__pycache__/
 client/ui/__pycache__/
 server/__pycache__/
+client_copy/

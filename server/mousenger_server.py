@@ -192,7 +192,7 @@ class Controller:
             self.__is_quitting = True
             handler_spawner_sock.close()
             scraper_handler_sock.close()
-            # [thread.join() for thread in self.__thread_pool]
+            # [thread.join() for thread in self.thread_pool]
 
         print('Server stopped.')
 

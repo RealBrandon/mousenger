@@ -7,6 +7,7 @@ else:
 
 
 class MainWindow(QtWidgets.QMainWindow):
+    aboutToClose = QtCore.pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -106,10 +107,13 @@ class MainWindow(QtWidgets.QMainWindow):
         font.setPointSize(12)
         menu_bar.setFont(font)
 
-        self.exit_action = QtGui.QAction('&Exit', self)
-        menu_bar.addAction(self.exit_action)
         about_action = QtGui.QAction('&About', self)
         menu_bar.addAction(about_action)
+
+    def closeEvent(self, event):
+        self.aboutToClose.emit()
+
+        super().closeEvent(event)
 
     def get_search_bar_input(self) -> str:
         query = self.search_bar.text()
@@ -128,24 +132,24 @@ class MainWindow(QtWidgets.QMainWindow):
         chat_name = self.chat_list.currentItem().text()
         return chat_name
 
-    # def set_chat_top(self, is_online: bool):
-    #     self.__chat_name_label.setText(self.__model.get_current_chat_title())
-    #     if is_online:
-    #         self.__online_status_label.setText('online')
-    #     else:
-    #         self.__online_status_label.setText('offline')
+    def set_chat_top(self, is_online: bool):
+        #     self.__chat_name_label.setText(self.__model.get_current_chat_title())
+        #     if is_online:
+        #         self.__online_status_label.setText('online')
+        #     else:
+        #         self.__online_status_label.setText('offline')
+        pass
 
-    def set_chat_top(self, opened_chat_name):
+    def set_chat_top_bar(self, opened_chat_name):
         self.__chat_name_label.setText(opened_chat_name)
 
-    def update_chat_display(self):
+    def set_chat_display(self, chat_history: list):
         ver_scroll_bar = self.__chat_display.verticalScrollBar()
         prev_scroll = ver_scroll_bar.sliderPosition()
         prev_max_scroll = ver_scroll_bar.maximum()
         ver_scroll_bar.setSliderDown(True)
 
-        chat_history = self.__model.get_msg()
-        content = ''
+        content = ""
         for sender, message in chat_history:
             if sender == 'You':
                 content += '<b>'
@@ -190,15 +194,16 @@ class MainWindow(QtWidgets.QMainWindow):
         self.msg_edit.clear()
         self.msg_edit.setFocus()
 
-    # def adjust_msg_edit_height(self):
-    #     '''Adjust the height of msg_edit to fit its content.'''
-    #     max_height = 262
-    #     doc_height = self.msg_edit.document().size().height()
-    #     padding: int = 2
-    #     new_height = int(doc_height) + padding
-    #     if new_height > max_height:
-    #         new_height = max_height
-    #     self.msg_edit.setFixedHeight(new_height)
+    def adjust_msg_edit_height(self):
+        #     '''Adjust the height of msg_edit to fit its content.'''
+        #     max_height = 262
+        #     doc_height = self.msg_edit.document().size().height()
+        #     padding: int = 2
+        #     new_height = int(doc_height) + padding
+        #     if new_height > max_height:
+        #         new_height = max_height
+        #     self.msg_edit.setFixedHeight(new_height)
+        pass
 
     def set_status_text(self, text: str):
         self.__status_label.setText(text)

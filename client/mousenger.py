@@ -18,6 +18,6 @@ app.setWindowIcon(QIcon("./ui/happy_mouse.webp"))
 model = Model()
 main_window = MainWindow()
 login_window = LoginWindow()
-controller = Controller()
+controller = Controller(model, main_window, login_window)
 sys.exit(app.exec())
 
