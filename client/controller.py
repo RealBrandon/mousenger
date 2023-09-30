@@ -1,7 +1,6 @@
 # Make PyCharm aware of the attributes of other components.
 # Allow the use of type hints for other components.
 import socket
-
 from model import Model
 from ui.main_window import MainWindow
 from ui.login_window import LoginWindow
@@ -23,7 +22,7 @@ class Controller:
         self.main_window: MainWindow = main_window
         self.login_window: LoginWindow = login_window
 
-        self.sending_sock = None
+        self.master_sock = None
         self.scraper_sock = None
         self.thread_pool = []
         # self.__msg_store_lock = threading.Lock()
@@ -40,17 +39,17 @@ class Controller:
             return
 
         try:
-            self.sending_sock = socket(AF_INET, SOCK_STREAM)
-            self.sending_sock.connect(REQUEST_HANDLER_SPAWNER_ADDR)
-            self.sending_sock.send(b"#LOGIN#")
-            result = self.sending_sock.recv(4)
+            self.master_sock = socket(AF_INET, SOCK_STREAM)
+            self.master_sock.connect(REQUEST_HANDLER_SPAWNER_ADDR)
+            self.master_sock.send(b"#LOGIN#")
+            result = self.master_sock.recv(4)
+
             if result == b"#OK#":  # Approved by server to proceed.
                 del result  # Reset result to avoid errors in further evaluations.
-                self.sending_sock.send(username.encode())
-                result = self.sending_sock.recv(4)  # Receive username check result.
+                self.master_sock.send(username.encode())
+                result = self.master_sock.recv(4)  # Receive username check result.
             else:
                 result = b"#ERROR#"
-
         except Exception as err:
             if __debug__:
                 print("login:", str(err), "while attempting a login.")
@@ -58,25 +57,22 @@ class Controller:
 
         if result == b"#OK#":  # Username passes.
             del result
-            self.sending_sock.send(password.encode())
-            result = self.sending_sock.recv(4)  # Receive password check result.
+            self.master_sock.send(password.encode())
+            result = self.master_sock.recv(4)  # Receive password check result.
 
             if result == b"#OK#":  # Password passes. Log in.
                 self.login_window.hide()
                 self.main(username)
-                return  # Abort the method to preserve sending_sock.
-            
+                return  # Abort the method to preserve master_sock.
             elif result == b"#NO#":
                 self.login_window.set_prompt_text("Password is incorrect!")
-
-        elif result == b"#NO#":
+        elif result == b"#NO#":  # Username does not pass.
             self.login_window.set_prompt_text("Username is invalid!")
 
         if result not in (b"#OK#", b"#NO#"):  # All other cases where error occurs
             self.login_window.set_prompt_text("Sorry, something went wrong. Please try again.")
-
-        self.sending_sock.close()
-        self.sending_sock = None
+        self.master_sock.close()
+        self.master_sock = None
 
     def send_msg(self):
         user_input = self.main_window.get_msg_edit_input()
@@ -86,22 +82,23 @@ class Controller:
             return
 
         try:
-            result = self.sending_sock.recv(4)
+            self.master_sock.send(b"#MSG#")
+            result = self.master_sock.recv(4)
             if result == b"#OK#":
+                del result
+            else:
                 pass
 
-            self.sending_sock.send(b"#MSG#")
             message = "#"
             message += self.model.get_opened_chat_name()
             message += "#"
             message += user_input
             message += "#END#"
-            self.sending_sock.send(message.encode())
-            result = self.sending_sock.recv(4)
-
+            self.master_sock.send(message.encode())
+            result = self.master_sock.recv(4)
         except Exception as err:
             if __debug__:
-                print(str(err), "while sending messages.")
+                print("send_msg:", str(err), "while sending messages.")
             result = b"#ERROR#"
 
         if result == b"#OK#":
@@ -111,7 +108,7 @@ class Controller:
             self.model.save_to_msg_store(user_input)
             # self.__msg_store_lock.release()
         else:
-            self.main_window.set_status_text("Failed")
+            self.main_window.set_status_text("Failed to send. Please try again.")
 
     def msg_scraper(self, username: str):
         """Scrape messages sent to the user from the server feeder"""
@@ -123,7 +120,7 @@ class Controller:
 
         while self.model.is_logged_in():
             # If this thread is blocked at recv(),
-            # a change in login status won"t stop the loop.
+            # a change in login status won't stop the loop.
             # MORE work needed!!!
 
             data = self.scraper_sock.recv(256).decode()
@@ -164,11 +161,11 @@ class Controller:
         if not query:
             return  # Search bar is empty. Abort method.
 
-        self.sending_sock.send(b"#FIND#")
-        result = self.sending_sock.recv(4)
+        self.master_sock.send(b"#FIND#")
+        result = self.master_sock.recv(4)
         if result == b"#OK#":
-            self.sending_sock.send(query.encode())
-            result = self.sending_sock.recv(4)
+            self.master_sock.send(query.encode())
+            result = self.master_sock.recv(4)
             if result == b"#OK#":  # The enquired user exists.
                 self.main_window.set_status_text("1 user is found.")
                 self.model.set_opened_chat_name(query)
@@ -249,10 +246,10 @@ class Controller:
     def exit(self):
         self.main_window.set_status_text("Wrapping up... Please wait a moment.")
         if self.model.is_logged_in():
-            self.sending_sock.send(b"#LOGOUT#")
+            self.master_sock.send(b"#LOGOUT#")
             if __debug__:
                 print("exit: Logout signal sent")
-            self.sending_sock.close()
+            self.master_sock.close()
             if __debug__:
                 print("exit: Sending socket closed")
 
@@ -267,6 +264,8 @@ class Controller:
                         print(f"exit: {thread} terminated")
 
             self.scraper_sock.close()
-            print("exit: Scraper socket closed")
+            if __debug__:
+                print("exit: Scraper socket closed")
             self.model.dump_msg_buffer()  # Dump all buffered messages into files.
-            print("exit: Message buffer dumped")
+            if __debug__:
+                print("exit: Message buffer dumped")
