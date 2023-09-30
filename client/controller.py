@@ -10,7 +10,6 @@ import threading
 from socket import *
 
 SERVER_IP = "127.0.0.1"
-# SERVER_IP = "103.152.220.241"
 REQUEST_HANDLER_SPAWNER_ADDR = (SERVER_IP, 12345)
 MSG_SCRAPER_HANDLER_ADDR = (SERVER_IP, 18964)
 
@@ -32,7 +31,6 @@ class Controller:
 
     def login(self):
         username, password = self.login_window.get_user_input()
-
         # Abort login if any credential is empty.
         if "" in (username, password):
             self.login_window.set_prompt_text("Credentials cannot be empty!")
@@ -48,17 +46,20 @@ class Controller:
                 del result  # Reset result to avoid errors in further evaluations.
                 self.master_sock.send(username.encode())
                 result = self.master_sock.recv(4)  # Receive username check result.
-            else:
-                result = b"#ERROR#"
         except Exception as err:
-            if __debug__:
-                print("login:", str(err), "while attempting a login.")
             result = b"#ERROR#"
+            if __debug__:
+                print("login:", str(err), "while checking username with server.")
 
         if result == b"#OK#":  # Username passes.
             del result
-            self.master_sock.send(password.encode())
-            result = self.master_sock.recv(4)  # Receive password check result.
+            try:
+                self.master_sock.send(password.encode())
+                result = self.master_sock.recv(4)  # Receive password check result.
+            except Exception as err:
+                result = b"#ERROR#"
+                if __debug__:
+                    print("login:", str(err), "while checking password with server.")
 
             if result == b"#OK#":  # Password passes. Log in.
                 self.login_window.hide()
@@ -69,7 +70,7 @@ class Controller:
         elif result == b"#NO#":  # Username does not pass.
             self.login_window.set_prompt_text("Username is invalid!")
 
-        if result not in (b"#OK#", b"#NO#"):  # All other cases where error occurs
+        if result not in (b"#OK#", b"#NO#"):  # All other cases
             self.login_window.set_prompt_text("Sorry, something went wrong. Please try again.")
         self.master_sock.close()
         self.master_sock = None
@@ -85,17 +86,16 @@ class Controller:
             self.master_sock.send(b"#MSG#")
             result = self.master_sock.recv(4)
             if result == b"#OK#":
-                del result
+                del result  # Reset result to avoid errors in further evaluations.
+                message = "#"
+                message += self.model.get_opened_chat_name()
+                message += "#"
+                message += user_input
+                message += "#END#"
+                self.master_sock.send(message.encode())
+                result = self.master_sock.recv(4)
             else:
-                pass
-
-            message = "#"
-            message += self.model.get_opened_chat_name()
-            message += "#"
-            message += user_input
-            message += "#END#"
-            self.master_sock.send(message.encode())
-            result = self.master_sock.recv(4)
+                result = b"#ERROR#"
         except Exception as err:
             if __debug__:
                 print("send_msg:", str(err), "while sending messages.")
@@ -107,8 +107,10 @@ class Controller:
             # self.__msg_store_lock.acquire()
             self.model.save_to_msg_store(user_input)
             # self.__msg_store_lock.release()
-        else:
+        elif result == b"#ERROR#":
             self.main_window.set_status_text("Failed to send. Please try again.")
+        else:
+            self.main_window.set_status_text("Unexpected error occurred. Please try again.")
 
     def msg_scraper(self, username: str):
         """Scrape messages sent to the user from the server feeder"""
