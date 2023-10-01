@@ -12,7 +12,21 @@ class Model(QtCore.QObject):
 
     def __init__(self):
         super().__init__()
+        self.__is_logged_in = False
         self.__username = None
+        self.__chat_list = None
+        self.__msg_buffer = None
+        self.__opened_chat_name = None
+
+    def is_logged_in(self) -> bool:
+        """Check if the current user is logged in."""
+        return self.__is_logged_in
+
+    def toggle_login(self):
+        self.__is_logged_in = not self.__is_logged_in
+
+    def set_user(self, username: str):
+        self.__username = username
         # Create necessary directories if not present
         os.makedirs(f"./data/{self.__username}/chat_history", exist_ok=True)
         # Initialise chat_list from the files in chat_history.
@@ -22,19 +36,8 @@ class Model(QtCore.QObject):
         # "bot.dat".rstrip(".dat") gives "bo" only.
         # Therefore, rsplit() is used instead.
         self.__msg_buffer = {chat_title: None for chat_title in self.__chat_list}
-        self.__load_into_msg_store()
+        self.__load_into_msg_buffer()
         self.__opened_chat_name = ""
-        self.__logged_in = False
-
-    def is_logged_in(self) -> bool:
-        """Check if the current user is logged in."""
-        return self.__logged_in
-
-    def toggle_logged_in(self):
-        self.__logged_in = not self.__logged_in
-
-    def set_username(self, new_username: str):
-        self.__username = new_username
 
     def get_chat_list(self) -> list:
         return self.__chat_list
@@ -107,7 +110,7 @@ class Model(QtCore.QObject):
             chat_history.append(msg_tuple)
         return chat_history
 
-    def __load_into_msg_store(self):
+    def __load_into_msg_buffer(self):
         for chat_title in self.__msg_buffer:
             file = open(f"./data/{self.__username}/chat_history/"
                         f"{chat_title}.dat", "r")

@@ -220,11 +220,11 @@ class Controller:
         username = self.login()
         if username is None:
             return  # Login fails. Abort main thread.
-        self.model.toggle_logged_in()
+        self.model.toggle_login()
         self.login_window.hide()
         if __debug__:
-            print("main: logged_in =", self.model.is_logged_in())
-        self.model.set_username(username)
+            print("main: is_logged_in =", self.model.is_logged_in())
+        self.model.set_user(username)
 
         self.main_window.set_status_text("Logged in!")
         self.set_chat_list()
@@ -255,7 +255,7 @@ class Controller:
             if __debug__:
                 print("exit: Master socket closed")
 
-            self.model.toggle_logged_in()  # Toggle login status to terminate child threads.
+            self.model.toggle_login()  # Toggle login status to terminate child threads.
             thread: threading.Thread
             for thread in self.thread_pool:
                 thread.join(2.0)
