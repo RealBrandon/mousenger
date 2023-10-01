@@ -25,11 +25,11 @@ class Controller:
         self.scraper_sock = None
         self.thread_pool = []
         # self.__msg_store_lock = threading.Lock()
-        
+
         self.connect_signals_and_slots()
         self.login_window.show()
 
-    def login(self):
+    def login(self) -> None | str:
         username, password = self.login_window.get_user_input()
         # Abort login if any credential is empty.
         if "" in (username, password):
@@ -62,9 +62,7 @@ class Controller:
                     print("login:", str(err), "while checking password with server.")
 
             if result == b"#OK#":  # Password passes. Log in.
-                self.login_window.hide()
-                self.main(username)
-                return  # Abort the method to preserve master_sock.
+                return username  # Abort the method to preserve master_sock.
             elif result == b"#NO#":
                 self.login_window.set_prompt_text("Password is incorrect!")
         elif result == b"#NO#":  # Username does not pass.
@@ -72,20 +70,21 @@ class Controller:
 
         if result not in (b"#OK#", b"#NO#"):  # All other cases
             self.login_window.set_prompt_text("Sorry, something went wrong. Please try again.")
+        # Reset master_sock for next login attempt.
         self.master_sock.close()
         self.master_sock = None
 
     def send_msg(self):
         user_input = self.main_window.get_msg_edit_input()
         if not user_input:
-            # Stops user from sending empty messages.
+            # Stop user from sending empty messages.
             self.main_window.set_status_text("Cannot send empty messages!")
             return
 
         try:
             self.master_sock.send(b"#MSG#")
             result = self.master_sock.recv(4)
-            if result == b"#OK#":
+            if result == b"#OK#":  # Approved by server to proceed.
                 del result  # Reset result to avoid errors in further evaluations.
                 message = "#"
                 message += self.model.get_opened_chat_name()
@@ -93,9 +92,7 @@ class Controller:
                 message += user_input
                 message += "#END#"
                 self.master_sock.send(message.encode())
-                result = self.master_sock.recv(4)
-            else:
-                result = b"#ERROR#"
+                result = self.master_sock.recv(4)  # Receive message transmission result.
         except Exception as err:
             if __debug__:
                 print("send_msg:", str(err), "while sending messages.")
@@ -119,7 +116,6 @@ class Controller:
 
         if __debug__:
             counter = 0
-
         while self.model.is_logged_in():
             # If this thread is blocked at recv(),
             # a change in login status won't stop the loop.
@@ -204,7 +200,7 @@ class Controller:
         # self.__main_window.adjust_msg_edit_height()
 
     def connect_signals_and_slots(self):
-        self.login_window.login_button.clicked.connect(self.login)
+        self.login_window.login_button.clicked.connect(self.main)
 
         self.main_window.send_button.clicked.connect(self.send_msg)
         # self.__main_window.msg_edit.textChanged.connect(self.__main_window.adjust_msg_edit_height)
@@ -220,8 +216,12 @@ class Controller:
         self.model.chatTitleChanged.connect(self.update_chat_display)
         self.model.chatListChanged.connect(self.set_chat_list)
 
-    def main(self, username: str):  # Only run after logging in.
+    def main(self):
+        username = self.login()
+        if username is None:
+            return  # Login fails. Abort main thread.
         self.model.toggle_logged_in()
+        self.login_window.hide()
         if __debug__:
             print("main: logged_in =", self.model.is_logged_in())
         self.model.set_username(username)
@@ -230,7 +230,7 @@ class Controller:
         self.set_chat_list()
         self.main_window.set_type_area_visibility(False)
         self.main_window.show()  # Make sure this line is below other lines of setting the main window.
-        
+
         self.scraper_sock = socket(AF_INET, SOCK_STREAM)
         thread = threading.Thread(target=self.msg_scraper,
                                   name="message scraper",
@@ -253,7 +253,7 @@ class Controller:
                 print("exit: Logout signal sent")
             self.master_sock.close()
             if __debug__:
-                print("exit: Sending socket closed")
+                print("exit: Master socket closed")
 
             self.model.toggle_logged_in()  # Toggle login status to terminate child threads.
             thread: threading.Thread
